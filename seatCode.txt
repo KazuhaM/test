@@ -1,0 +1,323 @@
+Sub SeatNum()
+    ''シート名定義
+    '授業コード一覧：授業コードと教室名などの対応表
+    '生徒リスト：新しい生徒リスト
+    '生徒リストlog：各授業コードにおける生徒と席番号のログ
+    'Config：設定シート
+    '変数定義
+
+
+
+    classn = Worksheets("授業コード一覧").Range("A1").End(xlDown).Row
+    studentn = Worksheets("生徒リスト").Range("A1").End(xlDown).Row
+    roomn = Worksheets("Config").Range("A1").Value
+    Debug.Print roomn
+    
+    
+    cfstyear = Worksheets("config").Range("F2").Value
+    cfstevent = Worksheets("config").Range("F3").Value
+    cfstsite = Worksheets("config").Range("F4").Value
+    cfstnum = Worksheets("config").Range("F5").Value
+    cfstgrade = Worksheets("config").Range("F6").Value
+    cfstkananame = Worksheets("config").Range("F7").Value
+    cfstname = Worksheets("config").Range("F8").Value
+    cfstsch = Worksheets("config").Range("F9").Value
+    cfstclasscode = Worksheets("config").Range("F10").Value
+    cfstclassname = Worksheets("config").Range("F11").Value
+    cfstdate = Worksheets("config").Range("F12").Value
+    
+    stexist = False
+    classcn = 1
+
+    
+    For k = 2 To classn
+        nowclasscode = Worksheets("授業コード一覧").Cells(k, 1).Value '授業コードの列要確認
+        classc = Worksheets("生徒リストlog").Cells(1, Columns.Count).End(xlToLeft).Column
+       
+        '' 授業コードが生徒リストlogにあるか判定
+        For classcn = 1 To classc \ 9
+            If Worksheets("生徒リストlog").Cells(2, (classcn - 1) * 9 + 5) = nowclasscode Then
+                stexist = True
+                Exit For
+            End If
+        Next classcn
+        
+        
+        ' 授業コードが生徒リストlogに見当たらなければ新規作成
+        If Not stexist Then
+            Worksheets("生徒リストlog").Range("A1:I1").Copy Destination:=Worksheets("生徒リストlog").Cells(1, classc + 1)
+            For i = 2 To classn
+                If Worksheets("授業コード一覧").Cells(i, 1) = nowclasscode Then
+                    clname = Worksheets("授業コード一覧").Cells(i, 2)
+                    clnum = Worksheets("授業コード一覧").Cells(i, 5)
+                    clweek = Worksheets("授業コード一覧").Cells(i, 6)
+                    stexist = True
+                    Exit For
+                End If
+            Next i
+            
+            If Not stexist Then
+                MsgBox ("該当する講座がありません")
+            End If
+            stexist = False
+            
+            
+            For i = 3 To roomn + 2
+                If Worksheets("Config").Cells(i, 1) = clnum Then
+                    clc = Worksheets("Config").Cells(i, 3)
+                    clr = Worksheets("Config").Cells(i, 2)
+                    stexist = True
+                    Exit For
+                End If
+            Next i
+            
+            If Not stexist Then
+                MsgBox ("該当する教室データがありません")
+            End If
+            stexist = False
+            
+            
+            tempr = 1
+            tempc = 1
+            tempw = 0
+            
+            For i = 2 To clr * clc * 2 + 1
+                Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 5) = nowclasscode
+                Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 6) = clnum
+                Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 7) = tempr
+                Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 8) = tempc
+                Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 9) = tempw
+                                
+                If tempc = clc Then
+                    tempc = 1
+                    tempw = (tempw + 1) Mod 2
+                    If tempr = clr Then
+                        tempr = 1
+                        tempw = 1
+                    Else
+                        tempr = tempr + 1
+                    End If
+                Else
+                    tempc = tempc + 1
+                End If
+            Next i
+                
+        End If
+        
+        classstn = Worksheets("生徒リストlog").Cells(500000, (classcn - 1) * 9 + 1).End(xlUp).Row
+        
+        '''受講しなくなった生徒を判定
+        If classstn > 1 Then
+            For i = 2 To classstn '生徒リストlog側の探索
+                If Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 1) = "" Then ' 空欄の席は判定しない
+                    Exit For
+                End If
+                For j = 2 To studentn '生徒リスト側の探索
+                    If Worksheets("生徒リストlog").Cells(i, (classcn - 1) * 9 + 1) = Worksheets("生徒リスト").Cells(j, cfstnum) And Worksheets("生徒リスト").Cells(j, cfstclasscode) = nowclasscode Then ' 授業コードと受講番号が一致する生徒が生徒リストにいるか
+                        stexist = True
+                        Exit For '生徒リストlogの生徒が生徒リストに存在していれば何もしない
+                    End If
+                Next j
+            
+                '生徒リストlogの生徒が生徒リストに存在していれば何もしない
+                If stexist Then
+                    Exit For
+                End If
+            
+                ' 生徒リストlogの生徒が生徒リストに見当たらなければ当該生徒を削除
+                Worksheets("生徒リストlog").Range(Cells(i, (classcn - 1) * 9 + 1), Cells(i, (classcn - 1) * 9 + 4)).Clear ' 授業コードと受講番号が一致する生徒が生徒リストにいなければその生徒が受講を取りやめたとして削除
+                
+            Next i
+            stexist = False
+        End If
+
+        
+        '''新規受講の生徒を判定
+        For i = 2 To studentn '生徒リスト側の探索
+            '当該授業コードの場合のみ探索
+            'Debug.Print nowclasscode
+            'Debug.Print Worksheets("生徒リスト").Cells(i, cfstclasscode)
+            If Worksheets("生徒リスト").Cells(i, cfstclasscode) = nowclasscode Then
+                'Debug.Print studentn
+                
+                For j = 1 To classstn '生徒リストlog側の探索
+                    If Worksheets("生徒リスト").Cells(i, cfstnum) = Worksheets("生徒リストlog").Cells(j, (classcn - 1) * 9 + 1) Then ' 生徒リストから生徒がすでに生徒リストlogにいるか判定
+                        stexist = True
+                        Exit For  ' 生徒リストの生徒が生徒リストlogにすでに存在していれば何もしない
+                    End If
+                Next j
+            
+                If stexist Then
+                    Exit For
+                End If
+            
+                ' 生徒リストの生徒が生徒リストlogに見当たらなければ当該生徒を新規挿入
+                For l = 2 To 500 '新しい生徒を生徒リストlogの空欄に挿入
+                    If Worksheets("生徒リストlog").Cells(l, (classcn - 1) * 9 + 1) = "" Then
+                        With Worksheets("生徒リストlog")
+                            .Cells(l, (classcn - 1) * 9 + 1) = Worksheets("生徒リスト").Cells(i, cfstnum)
+                            .Cells(l, (classcn - 1) * 9 + 2) = Worksheets("生徒リスト").Cells(i, cfstkananame)
+                            .Cells(l, (classcn - 1) * 9 + 3) = Worksheets("生徒リスト").Cells(i, cfstname)
+                            .Cells(l, (classcn - 1) * 9 + 4) = Worksheets("生徒リスト").Cells(i, cfstsch)
+                        End With
+                        Exit For
+                    End If
+                Next l
+            End If
+            
+        Next i
+        stexist = False
+        
+    Next k
+    
+
+End Sub
+
+Sub Sample1()
+    Dim i As Long
+    Dim j As Long
+    Dim k As Long
+    Dim l As Long
+    
+    Dim seatr As Integer
+    Dim seatc As Integer
+    
+    Dim cc As Integer
+    Dim studentn As Long
+    Dim classn As Long
+    Dim a As Integer
+    Dim classlist As Range
+    Dim frslt As Range
+    Dim nowclasscode As Integer
+    Dim nowclassroom As Integer
+    Dim classroomtemp As Range
+    Dim classroomn As Integer
+    Dim classroomConfig As Range
+    Dim roomn As Integer
+    
+    Dim ofc As Integer
+    Dim ofr As Integer
+    
+    Dim stc As Integer
+    Dim str As Integer
+    Dim stl As Integer
+    Dim stw As Integer
+    
+    ofr = 2
+    ofc = 0
+    
+
+    
+      
+    studentn = Worksheets("Sheet2").Range("A1").End(xlDown).Row
+    a = 1
+    classroomn = Worksheets("Sheet1").Range("A1").End(xlDown).Row
+    seatr = 5
+    seatc = 6
+    roomn = Worksheets("Config").Range("A1").End(xlDown).Row
+    
+    
+   
+    Worksheets("Temp1").Activate
+    Set classlist = Worksheets("Temp1").Range(Cells(1, 1), Cells(a, 1))
+    For i = 2 To studentn - 1                    ''セルA2からセルA8までを処理する
+        If Worksheets("Sheet2").Cells(i, 2).Value = "本郷" Then
+            cc = Worksheets("Sheet2").Cells(i, 3).Value         ''セルの値を変数bufに格納する　授業コードの列
+            
+            Set frslt = classlist.Find(cc)
+            If frslt Is Nothing Then   ''まだ登録されていなかったら…
+                a = a + 1
+                Worksheets("Temp1").Cells(a, 1).Value = cc            ''セルの値を連想配列に登録する
+                Set classlist = Worksheets("Temp1").Range(Cells(1, 1), Cells(a, 1))
+            End If
+        End If
+    Next i
+    
+    classn = Worksheets("Temp1").Range("A1").End(xlDown).Row
+    classn = classn - 1
+    
+    For i = 1 To classn
+         nowclasscode = Worksheets("Temp1").Cells(i + 1, 1)
+         Worksheets("Sheet1").Activate
+         Set classroomtemp = Worksheets("Sheet1").Range(Cells(1, 1), Cells(classroomn, 1)).Find(nowclasscode, LookAt:=xlWhole)
+         If classroomtemp Is Nothing Then
+            MsgBox ("時間割に登録されていない授業コードがあります")
+         Else
+            nowclassroom = Worksheets("Sheet1").Cells(classroomtemp.Row, 2).Value
+         End If
+         
+         
+         Worksheets("Config").Activate
+         
+         Set classroomConfig = Worksheets("Config").Range(Cells(1, 1), Cells(roomn, 1)).Find(nowclassroom, LookAt:=xlWhole)
+         If classroomConfig Is Nothing Then
+            MsgBox ("教室設定リストに該当の教室が存在しません")
+         Else
+            seatr = Worksheets("Config").Cells(classroomConfig.Row, 2).Value
+            seatc = Worksheets("Config").Cells(classroomConfig.Row, 3).Value
+            
+            
+         End If
+         
+         
+         '座席表ベース作成
+         Worksheets.Add after:=Worksheets(Worksheets.Count)
+         ActiveSheet.Name = nowclasscode
+         For j = 1 To seatc
+            For k = 1 To seatr
+                    Range(Cells(4 * k + ofr, 3 * j + ofc), Cells(4 * k + 2 + ofr, 3 * j + ofc)).BorderAround Weight:=xlMedium
+                    Range(Cells(4 * k + ofr, 3 * j + 1 + ofc), Cells(4 * k + 2 + ofr, 3 * j + 1 + ofc)).BorderAround Weight:=xlMedium
+            Next k
+         Next j
+
+         If nowclassroom = 401 Then
+            For j = 1 To seatc
+                For k = seatr + 1 To seatr + seatc - 1
+                    
+                    Range(Cells(4 * k + ofr, 3 * j + ofc), Cells(4 * k + 2 + ofr, 3 * j + ofc)).BorderAround Weight:=xlMedium
+                    Range(Cells(4 * k + ofr, 3 * j + 1 + ofc), Cells(4 * k + 2 + ofr, 3 * j + 1 + ofc)).BorderAround Weight:=xlMedium
+                Next k
+                seatc = seatc - 1
+            Next j
+         End If
+         
+         
+         Worksheets(Worksheets.Count).Cells(1, 1).Value = nowclasscode
+         Worksheets(Worksheets.Count).Cells(1, 2).Value = nowclassroom
+         
+         '生徒入力
+         str = 2
+         stc = 2
+         stl = 0
+         stw = 0
+         Worksheets("Sheet2").Activate
+         For j = 1 To studentn
+            If Worksheets("Sheet2").Cells(j, 2).Value = "本郷" And Worksheets("Sheet2").Cells(j, 3).Value = nowclasscode Then
+                stl = stl Mod 2
+                Worksheets(Worksheets.Count).Cells(4 * str + ofr, 3 * stc + ofc + stl).Value = Worksheets("Sheet2").Cells(j, 1).Value
+                Worksheets(Worksheets.Count).Cells(4 * str + ofr + 1, 3 * stc + ofc + stl).Value = Worksheets("Sheet2").Cells(j, 4).Value
+                Worksheets(Worksheets.Count).Cells(4 * str + ofr + 2, 3 * stc + ofc + stl).Value = Worksheets("Sheet2").Cells(j, 5).Value
+                If stc = seatc - 1 Then
+                    stc = 2
+                    If str = seatr Then
+                        str = 2
+                        stw = stw + 1
+                        If seatr Mod 2 = 1 Then
+                            stl = stl + 1
+                        End If
+                        If stw = 2 Then
+                            MsgBox ("生徒数がいっぱいです。残りの生徒は手入力してください。")
+                            Exit For
+                        End If
+                    Else
+                    str = str + 1
+                    stl = stl + 1
+                    End If
+                Else
+                    stc = stc + 1
+                End If
+            End If
+         Next j
+    Next i
+    
+End Sub
